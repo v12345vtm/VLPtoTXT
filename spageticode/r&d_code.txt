@@ -1,0 +1,282 @@
+import xml.etree.ElementTree as ET
+import os
+
+#velbus4.py
+def parse_velbus_xml(xml_file_path, output_file_path):
+    """
+    Parses the Velbus configuration XML file, extracts Module and Snapshot data,
+    and writes the formatted output to a text file.
+
+    Args:
+        xml_file_path (str): The path to the input XML file.
+        output_file_path (str): The path for the output text file.
+    """
+    try:
+        # 1. Read the XML content from the file
+        print(f"Reading XML from: {xml_file_path}")
+        with open(xml_file_path, 'r', encoding='utf-8') as f:
+            xml_content = f.read()
+
+    except FileNotFoundError:
+        print(f"Error: The input file was not found at {xml_file_path}")
+        return
+    except Exception as e:
+        print(f"An error occurred while reading the file: {e}")
+        return
+
+    try:
+        # 2. Parse the XML content
+        root = ET.fromstring(xml_content)
+    except ET.ParseError as e:
+        print(f"Error parsing XML content: {e}")
+        print("Please ensure the input file contains valid XML.")
+        return
+
+    output_lines = []
+
+    # 3. Find the <Modules> section and iterate over all <Module> elements
+    modules_element = root.find('Modules')
+
+    if modules_element is None:
+        print("Warning: Could not find the <Modules> element in the XML.")
+        return
+
+    for module in modules_element.findall('Module'):
+        # Extract attributes
+        module_type = module.get('type')
+        address_hex = module.get('address')
+
+        # --- Extract Caption (Modulenaam) ---
+        caption_element = module.find('Caption')
+        # Use .text and strip, otherwise default to a fallback string
+        caption_text = caption_element.text.strip() if caption_element is not None and caption_element.text else 'N/A (No Caption)'
+        # ------------------------------------
+
+        # --- Convert hex address (single or multi-part) to decimal string ---
+        try:
+            # 1. Split the hex address string by comma
+            hex_parts = address_hex.split(',')
+            decimal_parts = []
+
+            for part in hex_parts:
+                # 2. Convert each hex part to decimal (base 16) and convert back to string
+                #    Strip any leading/trailing whitespace
+                decimal_parts.append(str(int(part.strip(), 16)))
+
+            # 3. Join the decimal parts back into a comma-separated string
+            address_dec = ','.join(decimal_parts)
+
+        except (TypeError, ValueError):
+            address_dec = 'ERROR: Invalid Address'
+        # -------------------------------------------------------------------
+
+        # Find the nested <Snapshot> element
+        snapshot_element = module.find('Memory')
+        snapshot_hex = snapshot_element.text.strip() if snapshot_element is not None and snapshot_element.text else 'N/A'
+
+        # --- ASCII Conversion Logic ---
+        snapshot_ascii_converted = 'N/A'
+
+        if snapshot_hex != 'N/A' and snapshot_hex:
+            # The hex string must have an even length to be converted to bytes
+            if len(snapshot_hex) % 2 != 0:
+                snapshot_ascii_converted = f'Error: Odd length ({len(snapshot_hex)})'
+            else:
+                try:
+                    # Convert hex string to bytes
+                    snapshot_bytes = bytes.fromhex(snapshot_hex)
+
+                    # Convert bytes to a readable ASCII string, replacing non-printable characters
+                    ascii_list = []
+                    for byte in snapshot_bytes:
+                        # Check for printable ASCII characters (32=Space to 126=~)
+                        if 32 <= byte <= 126:
+                            ascii_list.append(chr(byte))
+                        else:
+                            # Replace non-printable characters (like nulls) with a dot for visualization
+                            ascii_list.append('.')
+
+                    snapshot_ascii_converted = "".join(ascii_list)
+
+                except ValueError:
+                    snapshot_ascii_converted = 'Error: Contains non-hex characters'
+        # -----------------------------
+
+        # Format the output as requested
+        output_lines.append(f"Module : {module_type} {address_dec}")
+        output_lines.append(f"Address :  {address_dec}")
+        # output_lines.append(f"Snapshot : \r\n{snapshot_hex}")
+        output_lines.append(f"Modulenaam : {caption_text}")
+        output_lines.append(f"Ascii : \r\n{snapshot_ascii_converted}")
+        output_lines.append("________________________")
+
+    # 4. Write the results to the output file
+    try:
+        with open(output_file_path, 'w', encoding='utf-8') as outfile:
+            outfile.write('\n'.join(output_lines))
+
+        print(f"\nSuccessfully parsed {len(output_lines) // 3} modules.")
+        print(f"Output written to: {output_file_path}")
+
+    except Exception as e:
+        print(f"An error occurred while writing the output file: {e}")
+
+
+# --- Configuration ---
+# NOTE: Update this path to match the location of your XML file.
+INPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject.vlp"
+OUTPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject.vlppython4werkt.txt"
+# ---------------------
+
+if __name__ == "__main__":
+    parse_velbus_xml(INPUT_FILE, OUTPUT_FILE)
+
+
+#############"deel2
+
+INPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject.vlppython4werkt.txt"
+OUTPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_split.txt"
+
+max_len = 240
+
+with open(INPUT_FILE, "r", encoding="utf-8") as infile, open(OUTPUT_FILE, "w", encoding="utf-8") as outfile:
+    for line in infile:
+        line = line.rstrip("\n")  # remove trailing newline
+        # break into chunks of max_len
+        for i in range(0, len(line), max_len):
+            outfile.write(line[i:i + max_len] + "\n")
+
+INPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_split.txt"
+OUTPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_split2.txt"
+
+max_len = 16
+with open(INPUT_FILE, "r", encoding="utf-8") as infile, open(OUTPUT_FILE, "w", encoding="utf-8") as outfile:
+    for line in infile:
+        line = line.rstrip("\n")  # remove trailing newline
+
+        # skip splitting if line contains 'Module' or 'Modulenaam'
+        if "Module" in line or "Modulenaam" in line or "Address" in line  or "________" in line:
+            outfile.write(line + "\n")
+            continue
+
+        # otherwise, break into chunks of max_len
+        for i in range(0, len(line), max_len):
+            outfile.write(line[i:i + max_len] + "\n")
+
+import re
+
+INPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_split2.txt"
+OUTPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_clean.txt"
+
+output_lines = []
+
+with open(INPUT_FILE, 'r', encoding='utf-8') as f:
+    for line in f:
+        line = line.rstrip('\n')
+        chars = list(line)
+
+        # Step 1 — replace any pattern .X. → ...
+        for i in range(1, len(chars) - 1):
+            if chars[i - 1] == '.' and chars[i + 1] == '.' and chars[i] != '.':
+                chars[i] = '.'
+
+        cleaned_line = ''.join(chars)
+
+        # Step 2 — skip lines that are 15 or 16 dots long
+        if cleaned_line.strip('.') == '' and len(cleaned_line) in (15, 16):
+            continue  # skip fully dotted line
+
+        output_lines.append(cleaned_line)
+
+# Write results
+with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    f.write('\n'.join(output_lines))
+
+print(f"✅ Cleaned file written to: {OUTPUT_FILE}")
+print(f"Removed lines that contained only 15 or 16 dots.")
+
+import re
+
+INPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_clean.txt"
+OUTPUT_FILE = r"C:\Users\v12345vtm\Documents\MyProject_superclean.txt"
+
+def clean_modules(input_text: str) -> str:
+    # Split into module blocks by lines of underscores
+    blocks = re.split(r'\n_{4,}\s*\n', input_text.strip(), flags=re.MULTILINE)
+
+    cleaned_blocks = []
+    for block in blocks:
+        if not block.strip():
+            continue
+
+        lines = block.splitlines()
+        module_name = None
+        module_name_line_index = None
+
+        # Find Modulenaam line
+        for idx, line in enumerate(lines):
+            if line.strip().lower().startswith("modulenaam"):
+                parts = line.split(":", 1)
+                if len(parts) > 1:
+                    module_name = parts[1].strip()
+                    module_name_line_index = idx
+                else:
+                    module_name = ""
+                    module_name_line_index = idx
+                break
+
+        # If Modulenaam not found, keep block unchanged
+        if module_name is None:
+            cleaned_blocks.append("\n".join(lines))
+            continue
+
+        # Normalize module name for substring matching
+        name_clean = re.sub(r'[^A-Za-z0-9]', '', module_name).lower()
+
+        new_lines = []
+        for idx, line in enumerate(lines):
+            stripped = line.strip()
+
+            # Always keep Modulenaam line
+            if idx == module_name_line_index:
+                new_lines.append(line)
+                continue
+
+            # Replace any line containing "Ascii" with blank line
+            if "ascii" in stripped.lower():
+                new_lines.append("")  # blank line (CRLF)
+                continue
+
+            # Remove lines that are only dots/whitespace
+            if re.fullmatch(r'[.\s]*', line):
+                continue
+
+            # Normalize line for substring check
+            line_clean = re.sub(r'[^A-Za-z0-9]', '', line).lower()
+
+            # Skip empty lines after cleaning
+            if not line_clean:
+                continue
+
+            # Remove lines that are substring of module name
+            if line_clean in name_clean:
+                continue
+
+            new_lines.append(line)
+
+        cleaned_blocks.append("\n".join(new_lines))
+
+    # Rejoin blocks with separator
+    return "\n________________________\n".join(cleaned_blocks)
+
+
+# Run directly
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
+    raw = f.read()
+
+result = clean_modules(raw)
+
+with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    f.write(result)
+
+print(f"✅ Cleaning complete — written to: {OUTPUT_FILE}")
