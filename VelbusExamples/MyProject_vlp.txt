@@ -150,3 +150,13 @@ Address :  7
 Modulenaam : VMBSIG-21
 
 N/A
+________________________
+Module : VMB1RYNO 8
+Address :  8
+Modulenaam : VMB1RYNO
+
+slaapkamer......
+Virtueel relais 
+Virtueel relais 
+Virtueel relais 
+Virtueel relais 
